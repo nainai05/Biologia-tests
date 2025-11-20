@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>12. Formy vstupu a existencie cudzorodej DNA v bunke. Vektory. Rekombinačné techniky</title>
+<style>
+  :root{
+	--card-bg: #FFE5CC;      
+	--accent: #FF9933;       
+    --good: #c8f7d0;
+    --bad: #FF9999;
+	--correct-unchecked: #c8f7d0;
+    --card-radius: 14px;
+  }
+  body{
+    margin:0;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: #FFFFFF;
+    color:#111;body{
+  background: 
+}
+    padding:30px 16px;
+    display:flex;
+    justify-content:center;
+  }
+  .wrap{
+    width:100%;
+    max-width:1100px;
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  h1{
+    margin:0;
+    font-size:22px;
+  }
+  .top-controls{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  button{
+    background:var(--accent);
+    color:white;
+    border:none;
+    padding:8px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+  }
+  button.secondary{
+    background:#6c757d;
+  }
+  .center-controls{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    margin-bottom:14px;
+  }
+  #quiz{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    align-items:center;
+  }
+  .card{
+    width:100%;
+    max-width:980px;
+    background:var(--card-bg);
+    border-radius:var(--card-radius);
+	border: 2px solid #FF9933;  /* žltý rámik */
+    padding:16px 18px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    display:block;
+    box-sizing:border-box;
+    position:relative;
+  }
+  .q-header{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .q-number{
+    font-weight:700;
+    min-width:34px;
+  }
+  .q-text{
+    font-weight:700;
+    flex:1;
+  }
+  .q-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .star{
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+    color:rgba(0,0,0,0.25);
+  }
+  .star.active{ color: gold; text-shadow: 0 0 6px rgba(255,215,0,0.4); }
+  .answers{
+    margin-top:10px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  label.ans{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    cursor:pointer;
+    padding:8px;
+    border-radius:8px;
+  }
+  label.ans input{ transform:scale(1.05); }
+  .btn-small{
+    padding:6px 10px;
+    font-size:13px;
+    border-radius:8px;
+    background:#0b84ff;
+  }
+  .btn-show{
+    background:#0b84ff;
+    color:white;
+    border-radius:8px;
+    padding:6px 10px;
+    font-size:13px;
+  }
+  .meta{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    font-size:13px;
+    margin-top:10px;
+    color:#333;
+  }
+  .result{
+    text-align:center;
+    margin-top:18px;
+    font-weight:700;
+    font-size:16px;
+  }
+  .controls-bottom{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    margin-top:18px;
+    flex-wrap:wrap;
+  }
+  .hidden{ display:none; }
+  /* coloring for showCorrect */
+  .correct { background: var(--good) !important; }
+  .incorrect { background: var(--bad) !important; }
+  .correct-unchecked { background: var(--correct-unchecked) !important; }
+  /* small responsive */
+  @media (max-width:640px){
+    body { padding:14px; }
+    .card{ padding:12px; }
+    .q-number{ min-width:28px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>12. Formy vstupu a existencie cudzorodej DNA v bunke. Vektory. Rekombinačné techniky</h1>
+    <div class="top-controls">
+      <button id="btnFavorites">Obľúbené</button>
+      <button id="btnShuffle">Zamiešať otázky</button>
+      <button id="btnShowAll" title="Zobraziť všetky správne odpovede">Zobraziť všetky správne odpovede</button>
+    </div>
+  </header>
+
+  <div class="center-controls">
+    <span style="color:#555">Filtrovať zobrazenie:</span>
+    <button id="btnShowAllQ" class="secondary">Zobraziť všetky</button>
+    <button id="btnShowWrongOnly" class="secondary">Zobraziť len chybné</button>
+    <button id="btnShowFavOnly" class="secondary">Zobraziť len obľúbené</button>
+  </div>
+
+  <div id="quiz"></div>
+
+  <div class="controls-bottom">
+    <button id="btnEvaluate">Vyhodnotiť všetko</button>
+    <button id="btnShowWrong">Zobraziť len chybné otázky</button>
+    <button id="btnRetryWrong">Opakovať len chybné</button>
+    <button id="btnReset">Obnoviť test</button>
+  </div>
+
+  <div class="result" id="resultText"></div>
+</div>
+
+<script>
+const questions = [
+{ id: 1, text: "Prirodzené spôsoby vstupu cudzej DNA do bunky sú:", answers: ["transformácia", "transkripcia", "transdukcia", "konjugácia"], key: "SNSS" },
+{ id: 2, text: "Medzi experimentálne techniky prenosu DNA do bunky patrí:", answers: ["elektroforéza", "mikroinjekcia", "lipofekcia", "fotosyntéza"], key: "NSSN" },
+{ id: 3, text: "Vírusové vektory používané v génovom inžinierstve môžu byť:", answers: ["retrovírusy", "chloroplasty", "adenovírusy", "mitochondrie"], key: "SNSN" },
+{ id: 4, text: "Cudzia DNA môže v bunke existovať ako:", answers: ["plazmidová forma", "mitochondriálna forma", "epizomálna forma", "ribozomálna forma"], key: "SNSN" },
+{ id: 5, text: "Integrovaná forma cudzej DNA je typická pre:", answers: ["retrovírusy", "plazmidy", "transpozóny", "liposómy"], key: "SNSN" },
+{ id: 6, text: "Plazmidové vektory:", answers: ["sú malé kruhové molekuly DNA schopné autonómnej replikácie", "sa prirodzene nachádzajú v jadre eukaryotických buniek", "môžu niesť selekčné markery a promótory", "nikdy sa nepoužívajú na produkciu proteínov"], key: "SNSN" },
+{ id: 7, text: "Vírusové vektory:", answers: ["retrovírusy sa integrujú do genómu hostiteľa", "adenovírusy prinášajú DNA bez integrácie", "adeno–asociované vírusy sú vysoko imunogénne", "všetky vírusové vektory sú vždy patogénne"], key: "SSNN" },
+{ id: 8, text: "Nevírusové vektory:", answers: ["zahŕňajú lipozómy a lipidové nanočastice", "sú menej bezpečné ako vírusové vektory", "môžu byť tvorené syntetickými polymérmi", "sa používajú len v rastlinnej biotechnológii"], key: "SNSN" },
+{ id: 9, text: "Bakteriálne vektory:", answers: ["využívajú oslabené patogény, ako Salmonella a Listeria", "neumožňujú prenos rekombinantnej DNA", "skúšajú sa pri vývoji vakcín", "dnes sú už úplne nahradené vírusovými vektormi"], key: "SNSN" },
+{ id: 10, text: "Rekombinačná DNA technológia:", answers: ["využíva reštrikčné endonukleázy a DNA ligázu", "umožňuje spojiť cudzí gén s vektorom", "je založená na transkripcii do mRNA", "neumožňuje selekciu klonov"], key: "SSNN" },
+{ id: 11, text: "Programovateľné nukleázy:", answers: ["ZFN, TALEN a CRISPR–Cas dokážu vytvoriť dvojvláknový zlom DNA", "výsledok editácie závisí od voľby opravnej dráhy HDR alebo NHEJ", "využívajú iba retrovírusy", "patria výlučne medzi bakteriálne enzýmy bez použitia v genetike"], key: "SSNN" },
+{ id: 12, text: "Base editory a prime editory:", answers: ["umožňujú meniť bázy alebo krátke úseky DNA bez dvojvláknových zlomov", "zvyšujú riziko off–target efektov", "predstavujú moderné varianty presného editovania", "vyžadujú vždy integráciu do chromozómu hostiteľa"], key: "SNSS" },
+{ id: 13, text: "Pri mutáciách spôsobujúcich stratu funkčnosti génu v génovej terapii sa najčastejšie:", answers: ["odstraňuje celý chromozóm", "dodáva funkčná kópia génu", "využíva RNAi", "edituje presná chyba v DNA"], key: "NSNS" },
+{ id: 14, text: "Cielená cytotoxicita v génovej terapii môže prebiehať:", answers: ["expresiou samovražedného génu", "expresiou génu pre rezistenciu na antibiotiká", "aktiváciou imunitného systému pomocou CAR–T buniek", "expresiou génu pre GFP"], key: "SNSN" },
+{ id: 15, text: "Vypnutie génu (knock–down) sa dosahuje:", answers: ["antisense oligonukleotidmi", "mechanizmom RNAi", "CRISPR–x/CRISPR–a systémom", "transkripciou génu na mRNA"], key: "SSNN" },
+{ id: 16, text: "CRISPR–Cas systém u baktérií:", answers: ["poskytuje adaptívnu imunitu voči bakteriofágom", "využíva krátke fragmenty vírusovej DNA uložené ako spacery", "degraduje RNA hostiteľskej bunky", "bol objavený iba v roku 2020"], key: "SSNN" },
+{ id: 17, text: "Najznámejší Cas proteín je Cas9, ktorý:", answers: ["umožňuje presné naštiepenie DNA", "degraduje proteíny", "funguje výhradne pri RNA vírusoch", "má varianty Cas12 a Cas13, zamerané na DNA a RNA"], key: "SNNS" },
+{ id: 18, text: "Princíp génovej terapie spočíva najmä v tom, že:", answers: ["sa do cieľových buniek vnesie funkčný gén", "sa trvalo umlčí všetky mutované gény v tele", "sa opraví mutácia alebo umlčí škodlivá alela", "sa nahrádza celé jadro bunky"], key: "SNSN" },
+{ id: 19, text: "Prvé regulačne schválené terapie zahŕňajú:", answers: ["Luxturna pre mutácie v RPE65", "Zolgensma pre spinálnu muskulárnu atrofiu", "penicilín", "cisplatina"], key: "SSNN" },
+{ id: 20, text: "Kľúčové požiadavky pre úspešnú génovú terapiu sú:", answers: ["presná molekulárna diagnóza", "výber vhodných cieľových buniek", "dodanie génu do cytoplazmatických inklúzií", "úplná eliminácia RNA hostiteľa"], key: "SSNN" },
+{ id: 21, text: "Ex vivo génová terapia:", answers: ["úprava buniek mimo tela a návrat pacientovi", "umožňuje selekciu a kontrolu buniek", "je praktickejšia pre tkanivá, ktoré nemožno odoberať", "prebieha priamo v tele pacienta"], key: "SSNN" },
+{ id: 22, text: "Medzi limity génovej terapie patrí:", answers: ["imunogénnosť vektorov", "riziko inzerčnej mutagenézy", "dlhodobý účinok pri integrujúcich systémoch", "schopnosť riešiť všetky polygénové ochorenia"], key: "SSNN" },
+{ id: 23, text: "CRISPR/Cas je:", answers: ["imunitný systém eukaryot", "adaptívny imunitný systém prokaryot", "imunitný systém vírusov", "nachádza sa v mitochondriách alebo chloroplastoch"], key: "NSNN" },
+{ id: 24, text: "CRISPR/Cas:", answers: ["je typ plazmidu", "je systém obrany proti cudzej DNA u baktérií", "je obranný systém vírusov", "rozstrihá DNA nešpecificky"], key: "NSNN" },
+{ id: 25, text: "Možnosti využitia CRISPR/Cas v medicíne:", answers: ["protinádorová terapia", "liečba monogénových ochorení", "liečba vírusových infekcií", "riešenie rezistencie na antibiotiká"], key: "SSSS" },
+{ id: 26, text: "Anti–CRISPR (Acr) proteíny:", answers: ["blokujú väzbové miesta DNA", "blokujú štiepenie DNA", "enzymaticky deaktivujú CRISPR/Cas", "sú prenášané plazmidmi"], key: "SSSN" },
+{ id: 27, text: "Crisprové antibiotiká:", answers: ["nemôžu byť cielené na plazmidy rezistencie", "majú širokospektrálny účinok", "môžu byť zamerané proti bakteriálnemu genómu", "inhibujú syntézu bunkovej steny"], key: "NNSN" },
+{ id: 28, text: "Génová terapia:", answers: ["je somatická alebo zárodočná", "je u ľudí zakázaná", "môže byť in vivo alebo ex vivo", "používa genetický materiál na liečbu chorôb"], key: "SNSS" },
+{ id: 29, text: "Somatická génová terapia:", answers: ["používa vírusové vektory na transdukciu", "používa vírusové vektory na transfekciu", "používa plazmidy na transfekciu", "používa plazmidy na transdukciu"], key: "SNSN" },
+{ id: 30, text: "RNA terapia:", answers: ["používa DNA molekuly", "používa antisense oligonukleotidy", "môže zaviesť mRNA na obnovu chýbajúceho enzýmu", "nepoužíva aptaméry"], key: "NSSN" },
+{ id: 31, text: "Vektor v génovej terapii:", answers: ["je systém prenosu génu", "je vždy integrovaný", "môže byť odvodený z vírusu", "môže sa integrovať podľa typu"], key: "SNSS" },
+{ id: 32, text: "Plazmidom môže byť podmienená:", answers: ["rezistencia", "replikácia bakteriálneho genómu", "produkcia toxínov", "degradácia organických látok"], key: "SNSS" },
+{ id: 33, text: "Plazmidom môže byť podmienená:", answers: ["tvorba restrikčných enzýmov", "tvorba jadrovej membrány", "schopnosť symbiózy", "syntéza membránových organel"], key: "SNSN" },
+{ id: 34, text: "Prenos plazmidu:", answers: ["delenie na horiz. a vertikálny", "horizontálny aj medzi rodmi", "vertikálny aj medzi rodmi", "prebieha aj počas amitózy"], key: "SSNS" },
+{ id: 35, text: "Horizontálny prenos plazmidu:", answers: ["deje sa počas amitózy", "len medzi rovnakými rodmi", "prenáša rezistenciu medzi rodmi", "prebieha konjugáciou"], key: "NNSS" },
+{ id: 36, text: "Choroby vhodné na génovú terapiu:", answers: ["Downov syndróm", "malignity", "SCID", "Duchennova dystrofia"], key: "NSSS" },
+{ id: 37, text: "Klonovanie sa využíva pri príprave:", answers: ["enzýmov", "hormónov", "vakcín", "krvných faktorov"], key: "SSSS" },
+{ id: 38, text: "Kozmidy sú vektory získané spojením:", answers: ["vírusov a ľudskej DNA", "plazmidov a fágov", "fágov a proteínov", "YAC a kvasiniek"], key: "NSNN" },
+{ id: 39, text: "Kozmidy sú:", answers: ["antibiotiká", "vektory", "klonovacie miesta", "enzýmy"], key: "NSNN" },
+{ id: 40, text: "Podľa funkcie delíme vektory na:", answers: ["klonovacie", "expresné", "lokalizované", "multifunkčné"], key: "SSNN" },
+{ id: 41, text: "Retrovírusové vektory môžu infikovať:", answers: ["nedeliace sa rakovinové bunky", "len deliace", "nedeliace a deliace", "len nedeliace"], key: "NSNN" },
+{ id: 42, text: "Rekombinantná DNA:", answers: ["nedá sa vyrobiť umelo", "skr. rDNA", "obsahuje sekvencie, ktoré sa spolu nevyskytujú", "nemôže vzniknúť v prírode"], key: "NSSN" },
+{ id: 43, text: "Technológia rekombinantnej DNA:", answers: ["súbor metód", "nie je tvorba DNA", "môže meniť DNA v organizmoch", "zahŕňa klonovanie"], key: "SNSS" },
+{ id: 44, text: "Technológia rDNA je:", answers: ["užitočná na produkciu proteínov", "zakázaná", "zbytočná", "využívaná v génovej terapii"], key: "SNNS" },
+{ id: 45, text: "Cudzorodá DNA môže vstúpiť do baktérie pomocou:", answers: ["transdukcie", "sexsekcie", "malformácie", "transformácie"], key: "SNNS" },
+{ id: 46, text: "Cudzorodá DNA môže vstúpiť do baktérie pomocou:", answers: ["transdukcie", "fortifikácie", "konjugácie", "malformácie"], key: "SNSN" },
+{ id: 47, text: "Vstup cudzej DNA do eukaryotickej bunky:", answers: ["transpozónmi", "fortifikáciou", "elekciou", "transdukciou"], key: "SNNS" },
+{ id: 48, text: "Bakteriálna rezistencia môže byť spôsobená:", answers: ["hyperpláziou", "génom rezistencie", "plazmidom", "transpozónom"], key: "NSSS" },
+{ id: 49, text: "Plazmid:", answers: ["je kruhová dvojvláknová DNA", "lineárna RNA", "môže priniesť výhodu", "nachádza sa len v eukaryách"], key: "SNSN" },
+{ id: 50, text: "Replikácia plazmidu:", answers: ["závisí od chromozómu", "je nezávislá", "prebieha rolling circle", "prebieha rolling stone"], key: "NSSN" },
+{ id: 51, text: "Plazmid – vlastnosti:", answers: ["slúži ako vektor", "je lineárna RNA", "nesie rezistenciu", "nachádza sa v jadre"], key: "SNSN" },
+{ id: 52, text: "Transpozóny:", answers: ["vznikajú iba umelo", "môžu sa pohybovať v genóme", "nie sú prítomné vo všetkých genómoch", "sú mutagény"], key: "NSNS" },
+{ id: 53, text: "Transpozóny:", answers: ["sú prítomné v každom genóme", "vznikajú iba umelo", "prenášajú gény rezistencie", "sú mutagény"], key: "SNSS" },
+{ id: 54, text: "Aplikácie rDNA:", answers: ["medicína", "biotechnológia", "výskum", "životné prostredie"], key: "SSSS" },
+{ id: 55, text: "Konjugácia:", answers: ["prenos DNA medzi baktériami", "prebieha pilusom", "prenos medzi eukaryotmi", "recipient vytvára pilus"], key: "SSNN" },
+{ id: 56, text: "Mechanizmy prenosu DNA medzi baktériami:", answers: ["transformácia", "transdukcia", "konjugácia", "translokácia"], key: "SSSN" },
+{ id: 57, text: "Laboratórne metódy prenosu DNA do bunky:", answers: ["replikácia", "elektroporácia", "lipofekcia", "mikroinjekcia"], key: "NSSS" },
+{ id: 58, text: "Formy cudzej DNA v bunke:", answers: ["plazmidová forma zabraňuje replikácii", "epizomálna forma sa replikuje koordinovane s genómom", "integrovaná forma je začlenenie do chromozómu", "transientná forma je trvalá"], key: "NSSN" },
+{ id: 59, text: "Typy vektorov používané v génovom inžinierstve:", answers: ["plazmidové", "vírusové (stafylokoky, streptokoky)", "lipidové nanočastice", "ribozómy"], key: "SNSN" },
+{ id: 60, text: "Ktoré tvrdenia o CRISPR–Cas systéme sú správne?", answers: ["poskytuje baktériám adaptívnu imunitu proti adenovírusom", "využíva krátke úseky vírusovej DNA uložené v CRISPR lokuse", "proteín Cas9 umožňuje presný rez DNA", "pôvodne ide o mechanizmus translácie"], key: "NSSN" },
+]
+
+
+const key = [
+"SNSS","NSSN","SNSN","SNSN","SNSN","SNSN","SSNN","SNSN","SNSN","SSNN",
+"SSNN","SNSS","NSNS","SNSN","SSNN","SSNN","SNNS","SNSN","SSNN","SSNN",
+"SSNN","SSNN","NSNN","NSNN","SSSS","SSSN","NNSN","SNSS","SNSN","NSSN",
+"SNSS","SNSS","SNSN","SSNS","NNSS","NSSS","SSSS","NSNN","NSNN","SSNN",
+"NSNN","NSSN","SNSS","SNNS","SNNS","SNSN","SNNS","NSSS","SNSN","NSSN",
+"SNSN","NSNS","SNSS","SSSS","SSNN","SSSN","NSSS","NSSN","SNSN","NSSN"
+];
+
+
+/* ------------------ State ------------------ */
+let state = {
+  questions: [], // will hold questions with original index and randomized answers
+  filter: 'all', // 'all', 'wrong', 'favorites'
+  favorites: new Set(),
+  lastWrongSet: [], // store wrong questions for retry
+};
+
+/* Initialize questions with originalIndex and random answer order */
+function initQuestions(){
+  state.questions = questions.map((q,i)=>{
+    const originalIndex = i; // 0-based
+    const answers = q.answers.map((txt, idx)=>({txt, idx}));
+    return { originalIndex, qtext: q.text, answers };
+  });
+  renderQuestions();
+}
+
+/* Utility shuffle */
+function shuffleArr(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+/* Render current state.questions according to filter */
+function renderQuestions(){
+  const container = document.getElementById('quiz');
+  container.innerHTML = '';
+  let toRender = state.questions.slice();
+
+  // apply filter
+  if(state.filter === 'favorites'){
+    toRender = toRender.filter(item => state.favorites.has(item.originalIndex));
+  } else if(state.filter === 'wrong'){
+    toRender = toRender.filter(item => state.lastWrongSet.includes(item.originalIndex));
+  }
+
+  if(toRender.length === 0){
+    const info = document.createElement('div');
+    info.style.textAlign='center';
+    info.style.color='#555';
+    info.style.margin='18px';
+    info.textContent = 'Žiadne otázky na zobrazenie.';
+    container.appendChild(info);
+    document.getElementById('resultText').textContent = '';
+    return;
+  }
+
+  toRender.forEach((item, displayIdx)=>{
+    // build card
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.orig = item.originalIndex;
+
+    // header
+    const header = document.createElement('div');
+    header.className = 'q-header';
+
+    const num = document.createElement('div');
+    num.className = 'q-number';
+    num.textContent = (displayIdx+1)+'.';
+
+    const text = document.createElement('div');
+    text.className = 'q-text';
+    text.textContent = item.qtext;
+
+    const actions = document.createElement('div');
+    actions.className = 'q-actions';
+
+    // star favorite
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.title = 'Označiť ako obľúbené';
+    star.innerHTML = state.favorites.has(item.originalIndex) ? '★' : '☆';
+    if(state.favorites.has(item.originalIndex)) star.classList.add('active');
+    star.addEventListener('click', ()=>{
+      if(state.favorites.has(item.originalIndex)){
+        state.favorites.delete(item.originalIndex);
+        star.classList.remove('active');
+        star.innerHTML = '☆';
+      } else {
+        state.favorites.add(item.originalIndex);
+        star.classList.add('active');
+        star.innerHTML = '★';
+      }
+    });
+
+    // show correct button
+    const btnShow = document.createElement('button');
+    btnShow.className = 'btn-small btn-show';
+    btnShow.textContent = 'Zobraziť správne';
+    btnShow.addEventListener('click', ()=> showCorrectForCard(card, item.originalIndex));
+
+    actions.appendChild(star);
+    actions.appendChild(btnShow);
+
+    header.appendChild(num);
+    header.appendChild(text);
+    header.appendChild(actions);
+
+    card.appendChild(header);
+
+    // randomize answer order for display (store mapping)
+    const randomized = item.answers.slice();
+    // If answers not yet shuffled for this render, shuffle them each render
+    const shuffledAnswers = shuffleArr(randomized);
+    card._shuffled = shuffledAnswers.map(a=>a.idx); // store original idx order
+
+    // answers block
+    const answersDiv = document.createElement('div');
+    answersDiv.className = 'answers';
+
+    shuffledAnswers.forEach((ansObj, ansPos)=>{
+      const label = document.createElement('label');
+      label.className = 'ans';
+      label.dataset.origAnswerIdx = ansObj.idx; // 0..3 original index
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.name = `q_${item.originalIndex}`;
+      checkbox.value = ansObj.idx;
+      label.appendChild(checkbox);
+      const span = document.createElement('span');
+      span.textContent = ansObj.txt;
+      label.appendChild(span);
+      answersDiv.appendChild(label);
+    });
+
+    card.appendChild(answersDiv);
+
+    // optional meta area: show original question number
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const origLabel = document.createElement('div');
+    origLabel.textContent = `#${item.originalIndex+1}`;
+    meta.appendChild(origLabel);
+    card.appendChild(meta);
+
+    container.appendChild(card);
+  });
+
+  // clear previous result
+  document.getElementById('resultText').textContent = '';
+}
+
+/* show correct for one card */
+function showCorrectForCard(cardEl, origIndex){
+  const key = questions[origIndex].key; // string like 'SNNN'
+  const labels = [...cardEl.querySelectorAll('label.ans')];
+  // Determine which shuffled labels correspond to which original index
+  labels.forEach(label=>{
+    const origAnsIdx = parseInt(label.dataset.origAnswerIdx,10); // 0..3
+    const isCorrect = key[origAnsIdx] === 'S';
+    const input = label.querySelector('input');
+    const checked = input.checked;
+    // Reset classes first
+    label.classList.remove('correct','incorrect');
+    if(isCorrect && checked) {
+      label.classList.add('correct');
+    } else if(isCorrect && !checked){
+      // correct but not selected -> mark blue (as requested)
+      label.classList.add('correct-unchecked'); // modrá
+    } else if(!isCorrect && checked){
+      // wrong selected -> red
+      label.classList.add('incorrect');
+    }
+    // else not correct and not selected -> keep default
+  });
+}
+
+/* show all correct answers globally */
+function showAllCorrect(){
+  const cards = document.querySelectorAll('.card');
+  cards.forEach(card=>{
+    const origIndex = parseInt(card.dataset.orig,10);
+    showCorrectForCard(card, origIndex);
+  });
+}
+
+/* evaluate current shown questions */
+function evaluateAll(){
+  const cards = document.querySelectorAll('.card');
+  let correctCount = 0;
+  const wrongList = [];
+  cards.forEach(card=>{
+    const origIndex = parseInt(card.dataset.orig,10);
+    const key = questions[origIndex].key; // e.g. 'SNNN'
+    const labels = [...card.querySelectorAll('label.ans')];
+    const selectedOrigIdx = labels.filter(lbl=> lbl.querySelector('input').checked ).map(lbl=> parseInt(lbl.dataset.origAnswerIdx,10));
+    // compute sets
+    const selSet = new Set(selectedOrigIdx);
+    const corrSet = new Set();
+    for(let i=0;i<4;i++) if(key[i]==='S') corrSet.add(i);
+    // Compare exact equality
+    let equal = (selSet.size === corrSet.size);
+    if(equal){
+      for(let v of selSet) if(!corrSet.has(v)){ equal=false; break; }
+    }
+    // mark colors for visual feedback
+    labels.forEach(label=>{
+      label.classList.remove('correct','incorrect');
+      const origAnsIdx = parseInt(label.dataset.origAnswerIdx,10);
+      const isCorrect = key[origAnsIdx] === 'S';
+      const checked = label.querySelector('input').checked;
+      if(isCorrect && checked) label.classList.add('correct');
+      else if(isCorrect && !checked) label.classList.add('incorrect');
+      else if(!isCorrect && checked) label.classList.add('incorrect');
+    });
+
+    if(equal){
+      correctCount++;
+    } else {
+      wrongList.push(origIndex);
+    }
+  });
+
+  // store last wrong set for retry/filters
+  state.lastWrongSet = wrongList.slice();
+
+  // percent relative to number of displayed questions
+  const total = cards.length;
+  const percent = total === 0 ? 0 : ((correctCount/total)*100).toFixed(2);
+  document.getElementById('resultText').textContent = `Úspešnosť: ${percent}% (${correctCount}/${total} úplne správnych otázok)`;
+}
+
+/* Show only wrong questions (filter) */
+function showOnlyWrong(){
+  if(state.lastWrongSet.length === 0){
+    alert('Nie sú uložené žiadne chybné otázky (vyhodnoť test najprv).');
+    return;
+  }
+
+  // uloženie všetkých označených odpovedí pred renderom
+  const savedAnswers = {};
+  document.querySelectorAll('.card').forEach(card=>{
+    const qIndex = parseInt(card.dataset.orig,10);
+    savedAnswers[qIndex] = [];
+    card.querySelectorAll('input[type="checkbox"]').forEach((chk, i)=>{
+      if(chk.checked) savedAnswers[qIndex].push(parseInt(chk.value,10));
+    });
+  });
+
+  state.filter = 'wrong';
+  renderQuestions();
+
+  // po rerendere obnov výbery
+  document.querySelectorAll('.card').forEach(card=>{
+    const qIndex = parseInt(card.dataset.orig,10);
+    if(savedAnswers[qIndex]){
+      card.querySelectorAll('input[type="checkbox"]').forEach(chk=>{
+        const val = parseInt(chk.value,10);
+        if(savedAnswers[qIndex].includes(val)) chk.checked = true;
+      });
+    }
+  });
+}
+
+/* Reset test to initial state (all questions, clear selections, clear coloring) */
+function resetTest(){
+  // reinitialize questions to default order and answers order
+  state.filter = 'all';
+  state.lastWrongSet = [];
+  // restore original questions order (as in questions array)
+  state.questions = questions.map((q,i)=>{
+    const answers = q.answers.map((txt, idx)=>({txt, idx}));
+    return { originalIndex:i, qtext:q.text, answers };
+  });
+  // clear favorites stays preserved
+  renderQuestions();
+  document.getElementById('resultText').textContent = '';
+}
+
+/* Retry only wrong questions (renders only wrong set but allows answering them) */
+function retryWrong(){
+  if(state.lastWrongSet.length === 0){
+    alert('Žiadne chybné otázky pre opakovanie. Najprv vyhodnoť test.');
+    return;
+  }
+  // Build state.questions to include only wrong ones, preserving originalIndex
+  state.questions = state.lastWrongSet.map(idx => {
+    const q = questions[idx];
+    const answers = q.answers.map((txt, ai)=>({txt, idx:ai}));
+    return { originalIndex: idx, qtext: q.text, answers };
+  });
+  state.filter = 'all';
+  renderQuestions();
+  document.getElementById('resultText').textContent = '';
+}
+
+/* Show only favorites */
+function showFavoritesOnly(){
+  state.filter = 'favorites';
+  renderQuestions();
+}
+
+/* Show all questions (clear filters) */
+function showAllQuestions(){
+  state.filter = 'all';
+  // restore full set in original order
+  state.questions = questions.map((q,i)=>({ originalIndex:i, qtext:q.text, answers: q.answers.map((txt, idx)=>({txt, idx})) }));
+  renderQuestions();
+}
+
+/* Shuffle questions (random order) and shuffle answers within each question */
+function shuffleQuestions(){
+  // shuffle questions array
+  const arr = questions.map((q,i)=>({ originalIndex:i, qtext:q.text, answers: q.answers.map((txt, idx)=>({txt, idx})) }));
+  const shuffled = shuffleArr(arr);
+  state.questions = shuffled;
+  state.filter = 'all';
+  renderQuestions();
+}
+
+/* Show Favorites modal/list (simple behavior: filter to favorites) */
+function showFavoritesList(){
+  // if no favorites, inform
+  if(state.favorites.size === 0){
+    alert('Nemáš označené žiadne obľúbené otázky.');
+    return;
+  }
+  state.filter = 'favorites';
+  // prepare state.questions as full list so filter works
+  state.questions = questions.map((q,i)=>({ originalIndex:i, qtext:q.text, answers: q.answers.map((txt, idx)=>({txt, idx})) }));
+  renderQuestions();
+}
+
+/* Show only wrong (button at bottom) identical to showOnlyWrong function but filters current display */
+function showOnlyWrongButton(){
+  showOnlyWrong();
+}
+
+/* Attach event listeners */
+document.getElementById('btnShowAll').addEventListener('click', showAllCorrect);
+document.getElementById('btnShuffle').addEventListener('click', ()=>{ shuffleQuestions(); });
+document.getElementById('btnFavorites').addEventListener('click', showFavoritesList);
+document.getElementById('btnShowAllQ').addEventListener('click', showAllQuestions);
+document.getElementById('btnShowWrongOnly').addEventListener('click', ()=>{ state.filter = 'wrong'; renderQuestions(); });
+document.getElementById('btnShowFavOnly').addEventListener('click', showFavoritesOnly);
+document.getElementById('btnEvaluate').addEventListener('click', evaluateAll);
+document.getElementById('btnShowWrong').addEventListener('click', showOnlyWrongButton);
+document.getElementById('btnRetryWrong').addEventListener('click', retryWrong);
+document.getElementById('btnReset').addEventListener('click', resetTest);
+
+/* Initialize on load */
+initQuestions();
+</script>
+</body>
+</html>
